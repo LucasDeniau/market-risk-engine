@@ -1,0 +1,39 @@
+# Portefeuille du moteur de risque, V1 : actions + options sur Euro Stoxx 50
+base_currency: EUR
+
+data:
+  start: "2007-01-01"
+  end: "2026-10-30"
+  raw_dir: data/raw
+  processed_dir: data/processed
+
+market:
+  index: "^STOXX50E"           # Euro Stoxx 50, sous-jacent des options
+  vol_index: "^V2TX"           # VSTOXX : volatilité implicite à la monnaie
+  vol_index_fallback: "^VIX"   # secours si le VSTOXX manque
+  fx: "EURUSD=X"               # dollars pour 1 euro
+  dividend_yield: 0.03         # hypothèse : 3 % de dividendes par an sur l'indice
+
+equities:
+  - {ticker: AIR.PA,  name: Airbus,        sector: Industrie,  currency: EUR, notional_eur: 400000}
+  - {ticker: MBG.DE,  name: Mercedes-Benz, sector: Auto,       currency: EUR, notional_eur: 400000}
+  - {ticker: BNP.PA,  name: BNP Paribas,   sector: Banque,     currency: EUR, notional_eur: 400000}
+  - {ticker: ALV.DE,  name: Allianz,       sector: Assurance,  currency: EUR, notional_eur: 400000}
+  - {ticker: TTE.PA,  name: TotalEnergies, sector: Energie,    currency: EUR, notional_eur: 400000}
+  - {ticker: ASML.AS, name: ASML,          sector: Tech,       currency: EUR, notional_eur: 400000}
+  - {ticker: MC.PA,   name: LVMH,          sector: Luxe,       currency: EUR, notional_eur: 400000}
+  - {ticker: SAN.PA,  name: Sanofi,        sector: Sante,      currency: EUR, notional_eur: 400000}
+  - {ticker: AI.PA,   name: Air Liquide,   sector: Chimie,     currency: EUR, notional_eur: 400000}
+  - {ticker: IBE.MC,  name: Iberdrola,     sector: Utilities,  currency: EUR, notional_eur: 400000}
+  - {ticker: SPY,     name: S&P 500 ETF,   sector: Indice US,  currency: USD, notional_eur: 2000000}
+
+# notional_eur négatif = option vendue
+options:
+  multiplier: 10
+  roll_frequency: monthly
+  positions:
+    - {id: short_call_1m_atm, type: call, moneyness: 1.00, maturity_months: 1,  notional_eur: -2000000}
+    - {id: short_put_1m_atm,  type: put,  moneyness: 1.00, maturity_months: 1,  notional_eur: -2000000}
+    - {id: short_put_3m_90,   type: put,  moneyness: 0.90, maturity_months: 3,  notional_eur: -2000000}
+    - {id: long_put_6m_95,    type: put,  moneyness: 0.95, maturity_months: 6,  notional_eur: 1500000}
+    - {id: long_call_12m_105, type: call, moneyness: 1.05, maturity_months: 12, notional_eur: 1000000}
