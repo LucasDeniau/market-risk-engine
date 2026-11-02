@@ -1,6 +1,7 @@
 """Téléchargement, alignement et contrôle des données de marché."""
 
 import warnings
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -23,6 +24,17 @@ def download_yahoo(tickers: list[str], start: str, end: str) -> tuple[pd.DataFra
     if raw.empty:
         raise RuntimeError("Yahoo n'a renvoyé aucune donnée")
     return raw["Close"], raw["Adj Close"]
+
+
+def load_vstoxx(path: str | Path) -> pd.Series:
+    """Lit l'historique officiel du VSTOXX (fichier STOXX h_vstoxx.txt).
+
+    Renvoie la colonne V2TX (vol implicite ATM 30 jours, en points),
+    indexée par date.
+    """
+    df = pd.read_csv(path, skiprows=2, index_col=0, na_values="NA")
+    df.index = pd.to_datetime(df.index, format="%d.%m.%Y")
+    return df["V2TX"].sort_index()
 
 
 def align_to_calendar(df: pd.DataFrame, calendar: pd.DatetimeIndex,
@@ -70,3 +82,50 @@ def quality_report(prices: pd.DataFrame, seuil_saut: float = 0.25) -> pd.DataFra
             "nb_sauts": (np.abs(log_ret) > seuil_saut).sum()
         }
     return pd.DataFrame(rows).T
+
+
+def build_market_data(cfg: dict, refresh: bool = False) -> pd.DataFrame:
+    """Construit le jeu de données quotidien du moteur de risque.
+
+    Une ligne par jour de cotation de l'Euro Stoxx 50 ; colonnes :
+    prix des actions en EUR, niveau de l'indice, vol ATM, EUR/USD, dividende.
+    """
+    d, m = cfg["data"], cfg["market"]
+    raw_dir = Path(d["raw_dir"])
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    close_path = raw_dir / "close.parquet"
+    adj_path = raw_dir / "adj_close.parquet"
+
+    # 1. Téléchargement, ou lecture du cache s'il existe déjà
+    if refresh or not close_path.exists():
+        tickers = [e["ticker"] for e in cfg["equities"]]
+        tickers += [m["index"], m["vol_index"], m["vol_index_fallback"], m["fx"]]
+        close, adj = download_yahoo(tickers, d["start"], d["end"])
+        close.to_parquet(close_path)
+        adj.to_parquet(adj_path)
+    close = pd.read_parquet(close_path)
+    adj = pd.read_parquet(adj_path)
+
+    # 2. Calendrier de référence et alignement
+    calendar = close[m["index"]].dropna().index
+    close = align_to_calendar(close, calendar)
+    adj = align_to_calendar(adj, calendar)
+
+    # 3. Actions : prix ajustés, convertis en EUR si besoin
+    out = pd.DataFrame(index=calendar)
+    for e in cfg["equities"]:
+        px = adj[e["ticker"]]
+        if e["currency"] == "USD":
+            px = to_eur(px, close[m["fx"]])
+        out[e["ticker"]] = px
+
+    # 4. Données de marché : prix bruts
+    out["index_level"] = close[m["index"]]
+    vol = close.get(m["vol_index"], pd.Series(np.nan, index=calendar))
+    fallback = close[m["vol_index_fallback"]]
+    out["atm_vol"] = vol.fillna(fallback) / 100
+    out["vol_from_fallback"] = vol.isna() & fallback.notna()
+    out["eurusd"] = close[m["fx"]]
+    out["div_yield"] = m["dividend_yield"]
+    out.index.name = "date"
+    return out
