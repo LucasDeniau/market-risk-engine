@@ -35,3 +35,12 @@ def align_to_calendar(df: pd.DataFrame, calendar: pd.DatetimeIndex,
     df = df.reindex(calendar)
     df = df.ffill(limit=max_ffill)
     return df
+
+
+def to_eur(price_usd: pd.Series, eurusd: pd.Series) -> pd.Series:
+    """Convertit un prix en dollars en euros.
+
+    eurusd cote le nombre de dollars pour 1 euro (ticker EURUSD=X).
+    """
+    eurusd_aligne = eurusd.reindex(price_usd.index)
+    return price_usd / eurusd_aligne
