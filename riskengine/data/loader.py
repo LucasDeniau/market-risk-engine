@@ -2,6 +2,7 @@
 
 import warnings
 
+import numpy as np
 import pandas as pd
 
 
@@ -44,3 +45,28 @@ def to_eur(price_usd: pd.Series, eurusd: pd.Series) -> pd.Series:
     """
     eurusd_aligne = eurusd.reindex(price_usd.index)
     return price_usd / eurusd_aligne
+
+
+def _plus_long_plat(s: pd.Series) -> int:
+    """Plus grand nombre de jours consécutifs où le prix ne bouge pas."""
+    inchange = (s.diff() == 0).to_numpy()
+    record = courant = 0
+    for flag in inchange:
+        courant = courant + 1 if flag else 0
+        record = max(record, courant)
+    return record
+
+
+def quality_report(prices: pd.DataFrame, seuil_saut: float = 0.25) -> pd.DataFrame:
+    """Contrôle qualité : une ligne par actif, à relire avant toute VaR."""
+    rows = {}
+    for col in prices.columns:
+        s = prices[col]
+        log_ret = np.log(s).diff()
+        rows[col] = {
+            "premiere_date": s.dropna().index[0] if not s.dropna().empty else None,
+            "nb_manquants": s.isna().sum(),
+            "plus_long_plat": _plus_long_plat(s),
+            "nb_sauts": (np.abs(log_ret) > seuil_saut).sum()
+        }
+    return pd.DataFrame(rows).T
