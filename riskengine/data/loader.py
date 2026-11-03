@@ -113,6 +113,8 @@ def build_market_data(cfg: dict, refresh: bool = False) -> pd.DataFrame:
     close = align_to_calendar(close, calendar)
     adj = align_to_calendar(adj, calendar)
     eurusd = align_to_calendar(load_ecb_eurusd(m["fx_file"]), calendar)
+    rate = load_fred_rate(m["rate_file"])
+    rate = rate.reindex(rate.index.union(calendar)).ffill().reindex(calendar)
 
     # 3. Actions : prix ajustés, convertis en EUR si besoin
     out = pd.DataFrame(index=calendar)
@@ -134,6 +136,7 @@ def build_market_data(cfg: dict, refresh: bool = False) -> pd.DataFrame:
     out["vol_source"] = np.where(vstoxx.notna(), "vstoxx", "proxy_vix")
 
     out["eurusd"] = eurusd
+    out["rate"] = rate
     out["div_yield"] = m["dividend_yield"]
     out.index.name = "date"
     return out
@@ -148,3 +151,18 @@ def load_ecb_eurusd(path: str | Path) -> pd.Series:
     df.index = pd.to_datetime(df.index, format="%Y-%m-%d")
     df.index.name = "date"
     return df["OBS_VALUE"].rename("eurusd").sort_index()
+
+
+def load_fred_rate(path: str | Path) -> pd.Series:
+    """Lit un taux mensuel FRED (en %) et le renvoie en décimal.
+
+    Chaque valeur est la moyenne du mois : elle est décalée d'un mois
+    pour n'être utilisée qu'une fois connue (pas de biais d'anticipation).
+    """
+    df = pd.read_csv(path, index_col="observation_date")
+    df.index = pd.to_datetime(df.index, format="%Y-%m-%d")
+    s = df.iloc[:, 0] / 100                       # première colonne, en décimal
+
+    s.index = s.index + pd.DateOffset(months=1)   # décalage d'un mois
+    s.index.name = "date"
+    return s.rename("rate").sort_index()

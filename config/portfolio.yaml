@@ -8,6 +8,7 @@ data:
   processed_dir: data/processed
 
 market:
+  rate_file: data/raw/euribor3m.csv   # taux interbancaire 3M zone euro (OCDE via FRED), mensuel
   index: "^STOXX50E"           # Euro Stoxx 50, sous-jacent des options
   vstoxx_file: data/raw/h_vstoxx.txt   # historique officiel STOXX (jusqu'à fév. 2016) 
   vol_index_fallback: "^VIX"   # secours si le VSTOXX manque
