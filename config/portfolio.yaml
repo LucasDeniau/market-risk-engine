@@ -9,7 +9,7 @@ data:
 
 market:
   index: "^STOXX50E"           # Euro Stoxx 50, sous-jacent des options
-  vol_index: "^V2TX"           # VSTOXX : volatilité implicite à la monnaie
+  vstoxx_file: data/raw/h_vstoxx.txt   # historique officiel STOXX (jusqu'à fév. 2016) 
   vol_index_fallback: "^VIX"   # secours si le VSTOXX manque
   fx: "EURUSD=X"               # dollars pour 1 euro
   dividend_yield: 0.03         # hypothèse : 3 % de dividendes par an sur l'indice

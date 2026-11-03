@@ -6,6 +6,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from riskengine.data.proxy import fit_linear_proxy
+
 
 def download_yahoo(tickers: list[str], start: str, end: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Télécharge les prix Yahoo Finance.
@@ -99,7 +101,7 @@ def build_market_data(cfg: dict, refresh: bool = False) -> pd.DataFrame:
     # 1. Téléchargement, ou lecture du cache s'il existe déjà
     if refresh or not close_path.exists():
         tickers = [e["ticker"] for e in cfg["equities"]]
-        tickers += [m["index"], m["vol_index"], m["vol_index_fallback"], m["fx"]]
+        tickers += [m["index"], m["vol_index_fallback"], m["fx"]]
         close, adj = download_yahoo(tickers, d["start"], d["end"])
         close.to_parquet(close_path)
         adj.to_parquet(adj_path)
@@ -121,10 +123,14 @@ def build_market_data(cfg: dict, refresh: bool = False) -> pd.DataFrame:
 
     # 4. Données de marché : prix bruts
     out["index_level"] = close[m["index"]]
-    vol = close.get(m["vol_index"], pd.Series(np.nan, index=calendar))
-    fallback = close[m["vol_index_fallback"]]
-    out["atm_vol"] = vol.fillna(fallback) / 100
-    out["vol_from_fallback"] = vol.isna() & fallback.notna()
+
+    # Volatilité implicite ATM : VSTOXX officiel, puis proxy calibré sur le VIX
+    vstoxx = load_vstoxx(m["vstoxx_file"]).reindex(calendar)
+    vix = close[m["vol_index_fallback"]]
+    fit = fit_linear_proxy(vstoxx, vix)
+    proxy = fit["a"] + fit["b"] * vix
+    out["atm_vol"] = vstoxx.fillna(proxy) / 100
+    out["vol_source"] = np.where(vstoxx.notna(), "vstoxx", "proxy_vix")
     out["eurusd"] = close[m["fx"]]
     out["div_yield"] = m["dividend_yield"]
     out.index.name = "date"

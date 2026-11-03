@@ -10,4 +10,4 @@ prix = [e["ticker"] for e in cfg["equities"]] + ["index_level"]
 print(quality_report(data[prix]))
 print()
 print(f"{len(data)} jours, du {data.index[0].date()} au {data.index[-1].date()}")
-print(f"Vol issue du VIX (repli) : {data['vol_from_fallback'].mean():.1%} des jours")
+print(f"Vol issue du proxy : {(data['vol_source'] == 'proxy_vix').mean():.1%} des jours")
