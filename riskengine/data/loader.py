@@ -98,10 +98,10 @@ def build_market_data(cfg: dict, refresh: bool = False) -> pd.DataFrame:
     close_path = raw_dir / "close.parquet"
     adj_path = raw_dir / "adj_close.parquet"
 
-    # 1. Téléchargement, ou lecture du cache s'il existe déjà
+    # 1. Téléchargement Yahoo, ou lecture du cache s'il existe déjà
     if refresh or not close_path.exists():
         tickers = [e["ticker"] for e in cfg["equities"]]
-        tickers += [m["index"], m["vol_index_fallback"], m["fx"]]
+        tickers += [m["index"], m["vol_index_fallback"]]
         close, adj = download_yahoo(tickers, d["start"], d["end"])
         close.to_parquet(close_path)
         adj.to_parquet(adj_path)
@@ -112,13 +112,14 @@ def build_market_data(cfg: dict, refresh: bool = False) -> pd.DataFrame:
     calendar = close[m["index"]].dropna().index
     close = align_to_calendar(close, calendar)
     adj = align_to_calendar(adj, calendar)
+    eurusd = align_to_calendar(load_ecb_eurusd(m["fx_file"]), calendar)
 
     # 3. Actions : prix ajustés, convertis en EUR si besoin
     out = pd.DataFrame(index=calendar)
     for e in cfg["equities"]:
         px = adj[e["ticker"]]
         if e["currency"] == "USD":
-            px = to_eur(px, close[m["fx"]])
+            px = to_eur(px, eurusd)
         out[e["ticker"]] = px
 
     # 4. Données de marché : prix bruts
@@ -131,7 +132,19 @@ def build_market_data(cfg: dict, refresh: bool = False) -> pd.DataFrame:
     proxy = fit["a"] + fit["b"] * vix
     out["atm_vol"] = vstoxx.fillna(proxy) / 100
     out["vol_source"] = np.where(vstoxx.notna(), "vstoxx", "proxy_vix")
-    out["eurusd"] = close[m["fx"]]
+
+    out["eurusd"] = eurusd
     out["div_yield"] = m["dividend_yield"]
     out.index.name = "date"
     return out
+
+
+def load_ecb_eurusd(path: str | Path) -> pd.Series:
+    """Lit le taux de référence BCE EUR/USD (dollars pour 1 euro).
+
+    Fichier CSV de l'API BCE (série EXR.D.USD.EUR.SP00.A), taux fixé à 14h15 CET.
+    """
+    df = pd.read_csv(path, usecols=["TIME_PERIOD", "OBS_VALUE"], index_col="TIME_PERIOD")
+    df.index = pd.to_datetime(df.index, format="%Y-%m-%d")
+    df.index.name = "date"
+    return df["OBS_VALUE"].rename("eurusd").sort_index()

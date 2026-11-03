@@ -11,7 +11,7 @@ market:
   index: "^STOXX50E"           # Euro Stoxx 50, sous-jacent des options
   vstoxx_file: data/raw/h_vstoxx.txt   # historique officiel STOXX (jusqu'à fév. 2016) 
   vol_index_fallback: "^VIX"   # secours si le VSTOXX manque
-  fx: "EURUSD=X"               # dollars pour 1 euro
+  fx_file: data/raw/ecb_eurusd.csv   # taux de référence BCE, dollars pour 1 euro (14h15 CET)
   dividend_yield: 0.03         # hypothèse : 3 % de dividendes par an sur l'indice
 
 equities:
