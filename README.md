@@ -1,4 +1,5 @@
 # Moteur de risque de marché
+![Tests](https://github.com/LucasDeniau/market-risk-engine/actions/workflows/ci.yml/badge.svg)
 
 Mini moteur de risque de marché en Python, construit comme celui d'une équipe risques de marché en banque :
 portefeuille multi-actifs en euros avec options sur indice, VaR et Expected Shortfall par plusieurs méthodes,
