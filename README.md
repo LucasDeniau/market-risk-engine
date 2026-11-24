@@ -31,7 +31,7 @@ Contrôle qualité automatique de chaque série : historique, valeurs manquantes
 
 - [x] Structure du package, configuration YAML validée
 - [x] Données de marché : téléchargement, alignement, contrôle qualité, proxy de volatilité
-- [ ] Pricer Black-Scholes-Merton et tests
+- [x] Pricer Black-Scholes-Merton et tests
 - [ ] Sensibilités, full revaluation contre delta-gamma-vega
 - [ ] VaR et ES : paramétrique, historique, historique filtrée (GARCH), Monte Carlo
 - [ ] Backtesting : Kupiec, Christoffersen, feux tricolores de Bâle
