@@ -8,6 +8,11 @@ import numpy as np
 from scipy.stats import norm
 
 
+def _cp(option):
+    """+1 pour un call, -1 pour un put ; accepte un texte ou un tableau de textes."""
+    return np.where(np.asarray(option) == "call", 1.0, -1.0)
+
+
 def d1_d2(S, K, T, r, sigma, q=0.0):
     """Renvoie (d1, d2) de Black-Scholes-Merton."""
     vol_racine_t = sigma * np.sqrt(T)
@@ -17,11 +22,19 @@ def d1_d2(S, K, T, r, sigma, q=0.0):
 
 
 def price(S, K, T, r, sigma, q=0.0, option="call"):
-    """Prix BSM d'un call ou d'un put européen."""
-    cp = 1.0 if option == "call" else -1.0
-    d1, d2 = d1_d2(S, K, T, r, sigma, q)
-    return cp * (S * np.exp(-q * T) * norm.cdf(cp * d1)
-                 - K * np.exp(-r * T) * norm.cdf(cp * d2))
+    """Prix BSM d'un call ou d'un put européen.
+
+    Une option échue (T <= 0) vaut sa valeur intrinsèque.
+    """
+    cp = _cp(option)
+    T = np.asarray(T, dtype=float)
+    T_calcul = np.maximum(T, 1e-10)   # évite la division par zéro pour les options échues
+    d1, d2 = d1_d2(S, K, T_calcul, r, sigma, q)
+    valeur = cp * (S * np.exp(-q * T_calcul) * norm.cdf(cp * d1)
+                   - K * np.exp(-r * T_calcul) * norm.cdf(cp * d2))
+    intrinseque = np.maximum(cp * (S - K), 0.0)
+    resultat = np.where(T > 0, valeur, intrinseque)
+    return float(resultat) if resultat.ndim == 0 else resultat
     
     
 def greeks(S, K, T, r, sigma, q=0.0, option="call"):
@@ -30,7 +43,7 @@ def greeks(S, K, T, r, sigma, q=0.0, option="call"):
     vega : par unité de sigma en décimal (vega / 100 = effet de +1 point de vol)
     theta : par année, = -dV/dT (theta / 365 = effet d'un jour)
     """
-    cp = 1.0 if option == "call" else -1.0
+    cp = _cp(option)
     d1, d2 = d1_d2(S, K, T, r, sigma, q)
     racine_t = np.sqrt(T)
     act_q = np.exp(-q * T)

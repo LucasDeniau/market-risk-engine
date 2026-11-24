@@ -74,3 +74,16 @@ def test_vectorisation():
     prix = price(S, 5000.0, 0.25, 0.03, 0.2, 0.03)
     assert prix.shape == (3,)
     assert np.all(np.diff(prix) > 0)  # un call vaut plus quand l'indice monte
+  
+    
+# 5. Options échues et types mélangés
+def test_echeance_valeur_intrinseque():
+    assert price(110, 100, 0.0, 0.02, 0.2, option="call") == pytest.approx(10.0)
+    assert price(90, 100, 0.0, 0.02, 0.2, option="put") == pytest.approx(10.0)
+    assert price(90, 100, -0.01, 0.02, 0.2, option="call") == 0.0
+
+
+def test_calls_et_puts_melanges():
+    prix = price(100.0, 100.0, 1.0, 0.02, 0.2, option=np.array(["call", "put"]))
+    assert prix[0] == pytest.approx(price(100, 100, 1.0, 0.02, 0.2, option="call"))
+    assert prix[1] == pytest.approx(price(100, 100, 1.0, 0.02, 0.2, option="put"))
